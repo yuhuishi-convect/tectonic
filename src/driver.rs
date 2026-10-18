@@ -2031,7 +2031,7 @@ impl ProcessingSession {
             .process(&data, style.as_deref())
             .with_context(|| EngineError::new("MakeIndex"))?;
 
-        self.store_makeindex_output(&job.output, &outcome, status)
+        Ok(self.store_makeindex_output(&job.output, outcome, status))
     }
 
     fn read_makeindex_style(
@@ -2062,9 +2062,13 @@ impl ProcessingSession {
     fn store_makeindex_output(
         &mut self,
         output: &str,
-        outcome: &MakeindexOutcome,
+        outcome: MakeindexOutcome,
         status: &mut dyn StatusBackend,
-    ) -> Result<bool> {
+    ) -> bool {
+        let MakeindexOutcome {
+            ind, ilg, warnings, ..
+        } = outcome;
+
         let previous = self
             .bs
             .mem
@@ -2073,11 +2077,11 @@ impl ProcessingSession {
             .get(output)
             .map(|file| file.data.clone());
 
-        if previous.as_deref() == Some(&outcome.ind) {
-            return Ok(false);
+        if previous.as_deref() == Some(&ind) {
+            return false;
         }
 
-        self.bs.mem.create_entry(output, outcome.ind.clone());
+        self.bs.mem.create_entry(output, ind);
         self.bs.events.insert(
             output.to_owned(),
             FileSummary::new(AccessPattern::Written, InputOrigin::NotInput),
@@ -2088,22 +2092,22 @@ impl ProcessingSession {
                 .with_extension("ilg")
                 .display()
                 .to_string();
-            self.bs.mem.create_entry(&log_name, outcome.ilg.clone());
+            self.bs.mem.create_entry(&log_name, ilg);
             self.bs.events.insert(
                 log_name,
                 FileSummary::new(AccessPattern::Written, InputOrigin::NotInput),
             );
         }
 
-        if outcome.warnings > 0 {
+        if warnings > 0 {
             tt_warning!(
                 status,
                 "makeindex reported {} warning(s); use --keep-logs for details",
-                outcome.warnings
+                warnings
             );
         }
 
-        Ok(true)
+        true
     }
 
     fn bibtex_pass(&mut self, status: &mut dyn StatusBackend) -> Result<i32> {

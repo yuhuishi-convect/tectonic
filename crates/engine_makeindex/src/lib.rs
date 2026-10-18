@@ -128,6 +128,6 @@ delim_0 ""
         let text = String::from_utf8(outcome.ind).unwrap();
 
         assert!(text.contains("\\begin{thenomenclature}"));
-        assert!(text.contains("\\item alpha1") || text.contains("\\item alpha"));
+        assert!(text.contains("\\item alpha1"));
     }
 }
